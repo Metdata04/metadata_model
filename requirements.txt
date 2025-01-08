@@ -1,0 +1,4 @@
+Flask==2.x.x
+flask-lambda==0.0.4
+pandas==1.x.x
+openpyxl==3.x.x

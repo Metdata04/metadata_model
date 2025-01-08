@@ -1,0 +1,18 @@
+[build]
+ 
+publish = "index.html"  
+
+  
+command = "pip install -r requirements.txt"
+
+
+functions = "functions"
+[[redirects]]
+  # Redirecting HTTP to HTTPS (optional)
+  from = "http://*"
+  to = "https://:splat"
+  status = 301
+  force = true
+
+[[plugins]]
+package = "@netlify/plugin-functions-install-core"
