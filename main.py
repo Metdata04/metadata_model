@@ -2,7 +2,7 @@ from flask import Flask, request, render_template, redirect, url_for
 import pandas as pd
 from openpyxl import load_workbook, Workbook
 import os
-import flask_lambda
+
 
 app = Flask(__name__)
 
@@ -131,8 +131,7 @@ def generate_availability_report(input_file, report_file, station_name):
     # Save the updated workbook
     wb.save(report_file)
 
-# Set up Flask app for AWS Lambda
-app = flask_lambda.Flask(app)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
