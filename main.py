@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 # Directories to store files
 METADATA_FOLDER = "/tmp/metadata"
-METADATA_REPORTS_FOLDER = "metadata_reports"
+METADATA_REPORTS_FOLDER = "/tmp/metadata_reports"
 
 os.makedirs(METADATA_FOLDER, exist_ok=True)
 os.makedirs(METADATA_REPORTS_FOLDER, exist_ok=True)
