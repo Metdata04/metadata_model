@@ -1,4 +1,4 @@
-Flask==2.x.x
-pandas==1.x.x
-openpyxl==3.x.x
-gunicorn==20.x.x
+Flask
+pandas
+openpyxl
+gunicorn
