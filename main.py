@@ -2,7 +2,8 @@ from flask import Flask, request, render_template, redirect, url_for
 import pandas as pd
 from openpyxl import load_workbook, Workbook
 import os
-
+import requests
+import base64
 
 app = Flask(__name__)
 
@@ -12,6 +13,43 @@ METADATA_REPORTS_FOLDER = "/tmp/metadata_reports"
 
 os.makedirs(METADATA_FOLDER, exist_ok=True)
 os.makedirs(METADATA_REPORTS_FOLDER, exist_ok=True)
+
+# GitHub repository details
+GITHUB_API_URL = "https://api.github.com"
+REPO_OWNER = "metdata04@gmail.com"  #GitHub username
+REPO_NAME = "metadata_model"  # Repository name
+BRANCH_NAME = "main"  #branch name
+GITHUB_TOKEN =  os.getenv("GITHUB_TOKEN") #GitHub personal access token
+
+# Function to upload a file to GitHub
+def upload_file_to_github(file_path, file_name, commit_message="Add new report"):
+    # Read the file and encode it in base64
+    with open(file_path, "rb") as file:
+        encoded_file = base64.b64encode(file.read()).decode("utf-8")
+
+    # GitHub API endpoint for creating or updating a file
+    url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_name}"
+
+    # Prepare the payload to be sent to GitHub API
+    data = {
+        "message": commit_message,
+        "content": encoded_file,
+        "branch": BRANCH_NAME
+    }
+
+    # Send the request to GitHub API
+    response = requests.put(
+        url,
+        headers={"Authorization": f"token {GITHUB_TOKEN}"},
+        json=data
+    )
+
+    if response.status_code == 201:
+        return f"File {file_name} uploaded successfully."
+    elif response.status_code == 200:
+        return f"File {file_name} updated successfully."
+    else:
+        return f"Failed to upload file: {response.status_code} - {response.text}"
 
 @app.route('/')
 def index():
@@ -38,6 +76,9 @@ def upload_file():
     # Generate or update the station's metadata report
     try:
         generate_availability_report(input_file_path, report_file_path, station_name)
+        # Upload to GitHub after generating the report
+        upload_result = upload_file_to_github(report_file_path, f"{station_name}_Metadata_Report.xlsx", f"Add new metadata report for {station_name}")
+        print(upload_result)
         # Redirect to the success page
         return redirect(url_for('report_generated', station_name=station_name))
     except Exception as e:
@@ -130,7 +171,6 @@ def generate_availability_report(input_file, report_file, station_name):
 
     # Save the updated workbook
     wb.save(report_file)
-
 
 
 if __name__ == '__main__':
