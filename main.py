@@ -16,7 +16,7 @@ os.makedirs(METADATA_REPORTS_FOLDER, exist_ok=True)
 
 # GitHub repository details
 GITHUB_API_URL = "https://api.github.com"
-REPO_OWNER = "metdata04@gmail.com"  #GitHub username
+REPO_OWNER = "Metdata04"  #GitHub username
 REPO_NAME = "metadata_model"  # Repository name
 BRANCH_NAME = "main"  #branch name
 GITHUB_TOKEN =  os.getenv("GITHUB_TOKEN") #GitHub personal access token
