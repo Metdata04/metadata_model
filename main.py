@@ -135,13 +135,23 @@ def generate_availability_report(input_file, report_file, station_name):
         available_dates = month_data['Date'].dt.strftime('%d/%m').tolist()
         data_availability = f"{available_dates[0]}-{available_dates[-1]}"
 
+        # Find missing dates in the month
         month_number = month_data['Date'].dt.month.iloc[0]
         all_dates = pd.date_range(
-            start=f"{year}-{month_number:02d}-01",
-            end=f"{year}-{month_number:02d}-{month_data['Date'].dt.days_in_month.iloc[0]}"
+        start=f"{year}-{month_number:02d}-01",
+        end=f"{year}-{month_number:02d}-{month_data['Date'].dt.days_in_month.iloc[0]}"
         )
-        missing_dates = [d.strftime('%d/%m') for d in all_dates if d not in month_data['Date'].tolist()]
-        data_missing = ", ".join(missing_dates) if missing_dates else "-"
+
+        # Convert both to date for accurate comparison
+        all_dates_set = set(all_dates.date)
+        available_dates_set = set(month_data['Date'].dt.date)
+
+        # Missing dates are those in all_dates_set but not in available_dates_set
+        missing_dates = all_dates_set - available_dates_set
+
+        # Format missing dates for output
+        formatted_missing_dates = [d.strftime('%d/%m') for d in sorted(missing_dates)]
+        data_missing = ", ".join(formatted_missing_dates) if formatted_missing_dates else "-"
 
         # Check which expected variables are available in the dataset
         expected_variables = [
