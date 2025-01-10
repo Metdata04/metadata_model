@@ -20,6 +20,9 @@ REPO_OWNER = "Metdata04"  #GitHub username
 REPO_NAME = "metadata_model"  # Repository name
 BRANCH_NAME = "main"  #branch name
 GITHUB_TOKEN =  os.getenv("Metadata_token") #GitHub personal access token
+if not GITHUB_TOKEN:
+    raise ValueError("GitHub token is not set in environment variables.")
+
 
 # Function to upload a file to GitHub
 def upload_file_to_github(file_path, file_name, commit_message="Add new report"):
