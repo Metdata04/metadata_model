@@ -87,8 +87,10 @@ def report_generated(station_name):
 
 
 def generate_availability_report(input_file, report_file, station_name):
+    # Read the input CSV file
     df = pd.read_csv(input_file)
 
+    # Ensure the 'Date' column exists and is valid
     if 'Date' not in df.columns:
         raise ValueError("The input file must contain a 'Date' column.")
 
@@ -99,14 +101,17 @@ def generate_availability_report(input_file, report_file, station_name):
     df['Year'] = df['Date'].dt.year
     df['Month'] = df['Date'].dt.strftime('%b').str.upper()
 
+    # Initialize or load the existing report file
     if os.path.exists(report_file):
         wb = load_workbook(report_file)
         ws = wb.active
+        # Get existing year and month combinations
         existing_months = {(row[0].value, row[1].value) for row in ws.iter_rows(min_row=2, max_col=2)}
     else:
         wb = Workbook()
         ws = wb.active
         ws.title = "Metadata Report"
+        # Define headers for the new report
         headers = ["Year", "Month", "Data Availability", "Data Missing", "Station Name"] + [
             "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
             "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
@@ -119,11 +124,14 @@ def generate_availability_report(input_file, report_file, station_name):
         ws.append(headers)
         existing_months = set()
 
+    # Group data by Year and Month
     grouped = df.groupby(['Year', 'Month'])
     for (year, month), month_data in grouped:
+        # Skip if the month already exists in the report
         if (year, month) in existing_months:
             continue
 
+        # Calculate data availability and missing data
         available_dates = month_data['Date'].dt.strftime('%d/%m').tolist()
         data_availability = f"{available_dates[0]}-{available_dates[-1]}"
 
@@ -135,6 +143,7 @@ def generate_availability_report(input_file, report_file, station_name):
         missing_dates = [d.strftime('%d/%m') for d in all_dates if d not in month_data['Date'].tolist()]
         data_missing = ", ".join(missing_dates) if missing_dates else "-"
 
+        # Check which expected variables are available in the dataset
         expected_variables = [
             "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
             "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
@@ -146,12 +155,15 @@ def generate_availability_report(input_file, report_file, station_name):
         ]
         available_variables = [col for col in expected_variables if col in month_data.columns]
 
+        # Create a new row for the report
         row = [year, month, data_availability, data_missing, station_name]
         for variable in expected_variables:
             row.append("✓" if variable in available_variables else "-")
 
+        # Append the row to the worksheet
         ws.append(row)
 
+    # Save the updated workbook
     wb.save(report_file)
 
 
