@@ -19,7 +19,7 @@ GITHUB_API_URL = "https://api.github.com"
 REPO_OWNER = "Metdata04"  #GitHub username
 REPO_NAME = "metadata_model"  # Repository name
 BRANCH_NAME = "main"  #branch name
-GITHUB_TOKEN =  os.getenv("GITHUB_TOKEN") #GitHub personal access token
+GITHUB_TOKEN =  os.getenv("Metadata_token") #GitHub personal access token
 
 # Function to upload a file to GitHub
 def upload_file_to_github(file_path, file_name, commit_message="Add new report"):
