@@ -24,25 +24,44 @@ if not GITHUB_TOKEN:
     raise ValueError("GitHub token is not set in environment variables.")
 
 
-# Function to upload a file to GitHub
 def upload_file_to_github(file_path, file_name, commit_message="Add new report"):
-    with open(file_path, "rb") as file:
-        encoded_file = base64.b64encode(file.read()).decode("utf-8")
-
+    # First, try to get the file's current sha (to check if it's an update or a new file)
     url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_name}"
 
+    # Fetch the file metadata from GitHub
+    response = requests.get(
+        url,
+        headers={"Authorization": f"token {GITHUB_TOKEN}"}
+    )
+
+    sha = None  # Default to None if file doesn't exist
+    if response.status_code == 200:
+        # File exists, get the sha of the current file
+        sha = response.json().get('sha')
+    
+    # Now, encode the file to base64
+    with open(file_path, "rb") as file:
+        encoded_file = base64.b64encode(file.read()).decode("utf-8")
+    
+    # Prepare the data for upload (either creating or updating the file)
     data = {
         "message": commit_message,
         "content": encoded_file,
         "branch": BRANCH_NAME
     }
 
+    # If sha is found, it means we are updating an existing file
+    if sha:
+        data['sha'] = sha
+    
+    # Perform the PUT request to upload or update the file
     response = requests.put(
         url,
         headers={"Authorization": f"token {GITHUB_TOKEN}"},
         json=data
     )
 
+    # Check the response status
     if response.status_code == 201:
         return f"File {file_name} uploaded successfully."
     elif response.status_code == 200:
