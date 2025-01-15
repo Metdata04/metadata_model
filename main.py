@@ -4,6 +4,7 @@ from openpyxl import load_workbook, Workbook
 import os
 import requests
 import base64
+from io import BytesIO
 
 app = Flask(__name__)
 
@@ -25,43 +26,78 @@ if not GITHUB_TOKEN:
 
 
 def upload_file_to_github(file_path, file_name, commit_message="Add new report"):
-    # First, try to get the file's current sha (to check if it's an update or a new file)
+    # Check if the file exists to get its sha (for update purposes)
     url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_name}"
-
-    # Fetch the file metadata from GitHub
+    
+    # Attempt to fetch the existing file metadata
     response = requests.get(
         url,
         headers={"Authorization": f"token {GITHUB_TOKEN}"}
     )
 
     sha = None  # Default to None if file doesn't exist
+    existing_file = None
     if response.status_code == 200:
-        # File exists, get the sha of the current file
+        # File exists, get the sha and the content
         sha = response.json().get('sha')
+        existing_file_url = response.json().get('download_url')
+        
+        # Download the existing file
+        existing_file_response = requests.get(existing_file_url)
+        existing_file = BytesIO(existing_file_response.content)
     
-    # Now, encode the file to base64
-    with open(file_path, "rb") as file:
+    # Load the existing workbook or create a new one
+    if existing_file:
+        wb = load_workbook(existing_file)
+    else:
+        wb = Workbook()  # New workbook if file doesn't exist
+        ws = wb.active
+        ws.title = "Metadata Report"
+        # Define headers for the new report if creating a new file
+        headers = ["Year", "Month", "Data Availability", "Data Missing", "Station Name"] + [
+            "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
+            "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
+            "Weekly Rain (mm)", "Monthly Rain (mm)", "Yearly Rain (mm)", "Relative Pressure (hPa)", "Humidity (%)",
+            "Ultra-Violet Radiation Index", "Solar Radiation (W/m^2)", "Indoor Temperature (°C)", "Indoor Humidity (%)",
+            "PM2.5 Outdoor (µg/m³)", "PM2.5 Outdoor 24 Hour Average (µg/m³)", "Indoor Battery", "Indoor Feels Like (°C)",
+            "Indoor Dew Point (°C)", "Absolute Pressure (hPa)", "Outdoor Battery", "Avg Wind Direction (10 mins) (°)",
+            "Avg Wind Speed (10 mins) (km/hr)", "Total Rain", "CO2 Battery", "PM 2.5 (µg/m³)"
+        ]
+        ws.append(headers)
+    
+    # Append new data to the sheet (assuming you have the data as `new_rows`)
+    new_rows = [
+        [2024, "JAN", "01/01-31/01", "-", "Station A"] + ["✓"] * 30  # Example row
+    ]
+    ws = wb.active
+    for row in new_rows:
+        ws.append(row)
+
+    # Save the updated workbook to a temporary file
+    updated_file_path = "/tmp/updated_report.xlsx"
+    wb.save(updated_file_path)
+
+    # Re-upload the file to GitHub
+    with open(updated_file_path, "rb") as file:
         encoded_file = base64.b64encode(file.read()).decode("utf-8")
-    
-    # Prepare the data for upload (either creating or updating the file)
+
+    # Prepare the data for upload (either create or update)
     data = {
         "message": commit_message,
         "content": encoded_file,
         "branch": BRANCH_NAME
     }
 
-    # If sha is found, it means we are updating an existing file
     if sha:
-        data['sha'] = sha
+        data["sha"] = sha  # Include sha if updating an existing file
     
-    # Perform the PUT request to upload or update the file
     response = requests.put(
         url,
         headers={"Authorization": f"token {GITHUB_TOKEN}"},
         json=data
     )
 
-    # Check the response status
+    # Check if the upload was successful
     if response.status_code == 201:
         return f"File {file_name} uploaded successfully."
     elif response.status_code == 200:
@@ -69,35 +105,6 @@ def upload_file_to_github(file_path, file_name, commit_message="Add new report")
     else:
         return f"Failed to upload file: {response.status_code} - {response.text}"
 
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return "No file part", 400
-
-    file = request.files['file']
-
-    if file.filename == '':
-        return "No selected file", 400
-
-    input_file_path = os.path.join(METADATA_FOLDER, file.filename)
-    file.save(input_file_path)
-
-    station_name = os.path.splitext(file.filename)[0]
-    report_file_path = os.path.join(METADATA_REPORTS_FOLDER, f"{station_name}_Metadata_Report.xlsx")
-
-    try:
-        generate_availability_report(input_file_path, report_file_path, station_name)
-        upload_result = upload_file_to_github(report_file_path, f"{station_name}_Metadata_Report.xlsx", f"Add new metadata report for {station_name}")
-        print(upload_result)
-        return redirect(url_for('report_generated', station_name=station_name))
-    except Exception as e:
-        return f"Error generating the report: {e}", 500
 
 
 @app.route('/report_generated/<station_name>')
