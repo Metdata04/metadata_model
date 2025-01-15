@@ -173,15 +173,8 @@ def generate_availability_report(input_file, report_file, station_name):
         ]
         available_variables = [col for col in expected_variables if col in month_data.columns]
 
-        row = [year, month, data_availability, data_missing, station_name]
-        for variable in expected_variables:
-            row.append("✓" if variable in available_variables else "-")
-
+        # Append row to the report
+        row = [year, month, data_availability, data_missing, station_name] + [month_data[var].mean() for var in available_variables]
         ws.append(row)
 
-    # Save the updated workbook
     wb.save(report_file)
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
