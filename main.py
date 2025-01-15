@@ -25,10 +25,9 @@ if not GITHUB_TOKEN:
 
 
 def upload_file_to_github(file_path, file_name, commit_message="Add new report"):
-    # First, try to get the file's current sha (to check if it's an update or a new file)
     url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_name}"
 
-    # Fetch the file metadata from GitHub
+    # Try to get the file's current sha (to check if it's an update or a new file)
     response = requests.get(
         url,
         headers={"Authorization": f"token {GITHUB_TOKEN}"}
@@ -38,11 +37,11 @@ def upload_file_to_github(file_path, file_name, commit_message="Add new report")
     if response.status_code == 200:
         # File exists, get the sha of the current file
         sha = response.json().get('sha')
-    
-    # Now, encode the file to base64
+
+    # Encode the file to base64
     with open(file_path, "rb") as file:
         encoded_file = base64.b64encode(file.read()).decode("utf-8")
-    
+
     # Prepare the data for upload (either creating or updating the file)
     data = {
         "message": commit_message,
@@ -53,7 +52,7 @@ def upload_file_to_github(file_path, file_name, commit_message="Add new report")
     # If sha is found, it means we are updating an existing file
     if sha:
         data['sha'] = sha
-    
+
     # Perform the PUT request to upload or update the file
     response = requests.put(
         url,
@@ -120,17 +119,15 @@ def generate_availability_report(input_file, report_file, station_name):
     df['Year'] = df['Date'].dt.year
     df['Month'] = df['Date'].dt.strftime('%b').str.upper()
 
-    # Initialize or load the existing report file
+    # Check if the report file exists on GitHub and append the new data
     if os.path.exists(report_file):
         wb = load_workbook(report_file)
         ws = wb.active
-        # Get existing year and month combinations
         existing_months = {(row[0].value, row[1].value) for row in ws.iter_rows(min_row=2, max_col=2)}
     else:
         wb = Workbook()
         ws = wb.active
         ws.title = "Metadata Report"
-        # Define headers for the new report
         headers = ["Year", "Month", "Data Availability", "Data Missing", "Station Name"] + [
             "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
             "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
@@ -146,7 +143,6 @@ def generate_availability_report(input_file, report_file, station_name):
     # Group data by Year and Month
     grouped = df.groupby(['Year', 'Month'])
     for (year, month), month_data in grouped:
-        # Skip if the month already exists in the report
         if (year, month) in existing_months:
             continue
 
@@ -154,25 +150,18 @@ def generate_availability_report(input_file, report_file, station_name):
         available_dates = month_data['Date'].dt.strftime('%d/%m').tolist()
         data_availability = f"{available_dates[0]}-{available_dates[-1]}"
 
-        # Find missing dates in the month
         month_number = month_data['Date'].dt.month.iloc[0]
         all_dates = pd.date_range(
-        start=f"{year}-{month_number:02d}-01",
-        end=f"{year}-{month_number:02d}-{month_data['Date'].dt.days_in_month.iloc[0]}"
+            start=f"{year}-{month_number:02d}-01",
+            end=f"{year}-{month_number:02d}-{month_data['Date'].dt.days_in_month.iloc[0]}"
         )
 
-        # Convert both to date for accurate comparison
         all_dates_set = set(all_dates.date)
         available_dates_set = set(month_data['Date'].dt.date)
-
-        # Missing dates are those in all_dates_set but not in available_dates_set
         missing_dates = all_dates_set - available_dates_set
-
-        # Format missing dates for output
         formatted_missing_dates = [d.strftime('%d/%m') for d in sorted(missing_dates)]
         data_missing = ", ".join(formatted_missing_dates) if formatted_missing_dates else "-"
 
-        # Check which expected variables are available in the dataset
         expected_variables = [
             "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
             "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
@@ -184,12 +173,10 @@ def generate_availability_report(input_file, report_file, station_name):
         ]
         available_variables = [col for col in expected_variables if col in month_data.columns]
 
-        # Create a new row for the report
         row = [year, month, data_availability, data_missing, station_name]
         for variable in expected_variables:
             row.append("✓" if variable in available_variables else "-")
 
-        # Append the row to the worksheet
         ws.append(row)
 
     # Save the updated workbook
