@@ -183,5 +183,6 @@ def generate_availability_report(input_file, report_file, station_name):
     wb.save(report_file)
 
 
+
 if __name__ == '__main__':
     app.run(debug=True)
