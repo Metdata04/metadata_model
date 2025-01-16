@@ -128,7 +128,7 @@ def generate_availability_report(input_file, report_file, station_name):
         wb = Workbook()
         ws = wb.active
         ws.title = "Metadata Report"
-        headers = ["Year", "Month", "Station Name", "Data Availability", "Data Missing"] + [
+        headers = ["Year", "Month", "Data Availability", "Data Missing"] + [
             "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
             "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
             "Weekly Rain (mm)", "Monthly Rain (mm)", "Yearly Rain (mm)", "Relative Pressure (hPa)", "Humidity (%)",
