@@ -119,7 +119,7 @@ def generate_availability_report(input_file, report_file, station_name):
     df['Year'] = df['Date'].dt.year
     df['Month'] = df['Date'].dt.strftime('%b').str.upper()
 
-    # Check if the report file exists on GitHub and append the new data
+    # Load the workbook if it exists, otherwise create a new one
     if os.path.exists(report_file):
         wb = load_workbook(report_file)
         ws = wb.active
@@ -178,6 +178,10 @@ def generate_availability_report(input_file, report_file, station_name):
             row.append("✓" if variable in available_variables else "-")
 
         ws.append(row)
+
+    # Save the updated workbook
+    wb.save(report_file)
+
 
     # Save the updated workbook
     wb.save(report_file)
