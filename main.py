@@ -104,14 +104,17 @@ def report_generated(station_name):
     return f"Report successfully generated for station: {station_name}. You can find it in the {METADATA_REPORTS_FOLDER} folder."
 
 
-def generate_availability_report(input_file, report_file, station_name):
+def generate_availability_report(input_file, report_file):
+    # Extract the station name from the file name (assuming station name is part of the file name, e.g., 'station_name_2023.csv')
+    station_name = os.path.basename(input_file).split('_')[0]  # Adjust this based on the actual file naming convention
+
     # Read the input CSV file
     df = pd.read_csv(input_file)
 
     # Ensure the 'Date' column exists and is valid
     if 'Date' not in df.columns:
         raise ValueError("The input file must contain a 'Date' column.")
-
+    
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     if df['Date'].isna().any():
         raise ValueError("Some 'Date' values are invalid.")
@@ -124,12 +127,11 @@ def generate_availability_report(input_file, report_file, station_name):
     if os.path.exists(report_file):
         wb = load_workbook(report_file)
         ws = wb.active
-        existing_months = {(row[0].value, row[1].value) for row in ws.iter_rows(min_row=2, max_col=2)}
     else:
         wb = Workbook()
         ws = wb.active
         ws.title = "Metadata Report"
-        headers = ["Year", "Month", "Data Availability", "Data Missing", "Station Name"] + [
+        headers = ["Year", "Month", "Station Name", "Data Availability", "Data Missing"] + [
             "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
             "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
             "Weekly Rain (mm)", "Monthly Rain (mm)", "Yearly Rain (mm)", "Relative Pressure (hPa)", "Humidity (%)",
@@ -139,28 +141,23 @@ def generate_availability_report(input_file, report_file, station_name):
             "Avg Wind Speed (10 mins) (km/hr)", "Total Rain", "CO2 Battery", "PM 2.5 (µg/m³)"
         ]
         ws.append(headers)
-        existing_months = set()
 
-    # Group data by Year and Month
-    grouped = df.groupby(['Year', 'Month'])
-    for (year, month), month_data in grouped:
-        # Create a unique report for each station (station_name is used here)
-        if (year, month) in existing_months:
-            continue
-
-        # Calculate data availability and missing data
-        available_dates = month_data['Date'].dt.strftime('%d/%m').tolist()
+    # Group data by Year, Month, and Station Name
+    grouped = df.groupby(['Year', 'Month', 'Station Name'])
+    for (year, month, station), station_data in grouped:
+        # Calculate data availability and missing data for the current station
+        available_dates = station_data['Date'].dt.strftime('%d/%m').tolist()
         data_availability = f"{available_dates[0]}-{available_dates[-1]}" if available_dates else "-"
-
+        
         # Create the full month for comparison to get missing dates
-        month_number = month_data['Date'].dt.month.iloc[0]
+        month_number = station_data['Date'].dt.month.iloc[0]
         all_dates = pd.date_range(
             start=f"{year}-{month_number:02d}-01",
-            end=f"{year}-{month_number:02d}-{month_data['Date'].dt.days_in_month.iloc[0]}"
+            end=f"{year}-{month_number:02d}-{station_data['Date'].dt.days_in_month.iloc[0]}"
         )
 
         all_dates_set = set(all_dates.date)
-        available_dates_set = set(month_data['Date'].dt.date)
+        available_dates_set = set(station_data['Date'].dt.date)
         missing_dates = all_dates_set - available_dates_set
         formatted_missing_dates = [d.strftime('%d/%m') for d in sorted(missing_dates)]
         data_missing = ", ".join(formatted_missing_dates) if formatted_missing_dates else "-"
@@ -175,10 +172,10 @@ def generate_availability_report(input_file, report_file, station_name):
             "Indoor Dew Point (°C)", "Absolute Pressure (hPa)", "Outdoor Battery", "Avg Wind Direction (10 mins) (°)",
             "Avg Wind Speed (10 mins) (km/hr)", "Total Rain", "CO2 Battery", "PM 2.5 (µg/m³)"
         ]
-        available_variables = [col for col in expected_variables if col in month_data.columns]
+        available_variables = [col for col in expected_variables if col in station_data.columns]
 
-        # Append the station's data to the Excel sheet
-        row = [year, month, data_availability, data_missing, station_name]
+        # Append the station's data for the current month to the Excel sheet
+        row = [year, month, station, data_availability, data_missing]
         for variable in expected_variables:
             row.append("✓" if variable in available_variables else "-")
 
@@ -186,6 +183,7 @@ def generate_availability_report(input_file, report_file, station_name):
 
     # Save the updated workbook
     wb.save(report_file)
+
 
 
 
