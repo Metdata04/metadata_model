@@ -27,7 +27,7 @@ if not GITHUB_TOKEN:
 def upload_file_to_github(file_path, file_name, commit_message="Add new report"):
     url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_name}"
 
-    # Try to get the file's current sha (to check if it's an update or a new file)
+    # Check if the file exists
     response = requests.get(
         url,
         headers={"Authorization": f"token {GITHUB_TOKEN}"}
@@ -61,12 +61,10 @@ def upload_file_to_github(file_path, file_name, commit_message="Add new report")
     )
 
     # Check the response status
-    if response.status_code == 201:
-        return f"File {file_name} uploaded successfully."
-    elif response.status_code == 200:
-        return f"File {file_name} updated successfully."
+    if response.status_code in (200, 201):
+        return f"File {file_name} uploaded/updated successfully."
     else:
-        return f"Failed to upload file: {response.status_code} - {response.text}"
+        raise Exception(f"Failed to upload file: {response.status_code} - {response.text}")
 
 
 @app.route('/')
@@ -92,7 +90,7 @@ def upload_file():
 
     try:
         generate_availability_report(input_file_path, report_file_path, station_name)
-        upload_result = upload_file_to_github(report_file_path, f"{station_name}_Metadata_Report.xlsx", f"Add new metadata report for {station_name}")
+        upload_result = upload_file_to_github(report_file_path, f"{station_name}_Metadata_Report.xlsx", f"Add/update metadata report for {station_name}")
         print(upload_result)
         return redirect(url_for('report_generated', station_name=station_name))
     except Exception as e:
@@ -101,7 +99,7 @@ def upload_file():
 
 @app.route('/report_generated/<station_name>')
 def report_generated(station_name):
-    return f"Report successfully generated for station: {station_name}. You can find it in the {METADATA_REPORTS_FOLDER} folder."
+    return f"Report successfully generated for station: {station_name}. You can find it in the GitHub repository."
 
 
 def generate_availability_report(input_file, report_file, station_name):
@@ -120,12 +118,19 @@ def generate_availability_report(input_file, report_file, station_name):
     df['Year'] = df['Date'].dt.year
     df['Month'] = df['Date'].dt.strftime('%b').str.upper()
 
-    # Load the workbook if it exists, otherwise create a new one
-    if os.path.exists(report_file):
+    # Check if the report file exists in GitHub
+    url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{station_name}_Metadata_Report.xlsx"
+    response = requests.get(url, headers={"Authorization": f"token {GITHUB_TOKEN}"})
+
+    if response.status_code == 200:
+        # File exists, download it
+        content = base64.b64decode(response.json()['content'])
+        with open(report_file, "wb") as f:
+            f.write(content)
         wb = load_workbook(report_file)
         ws = wb.active
-        existing_months = {(row[0].value, row[1].value) for row in ws.iter_rows(min_row=2, max_col=2)}
     else:
+        # Create a new workbook
         wb = Workbook()
         ws = wb.active
         ws.title = "Metadata Report"
@@ -139,15 +144,10 @@ def generate_availability_report(input_file, report_file, station_name):
             "Avg Wind Speed (10 mins) (km/hr)", "Total Rain", "CO2 Battery", "PM 2.5 (µg/m³)"
         ]
         ws.append(headers)
-        existing_months = set()
 
     # Group data by Year and Month
     grouped = df.groupby(['Year', 'Month'])
     for (year, month), month_data in grouped:
-        # Create a unique report for each station (station_name is used here)
-        if (year, month) in existing_months:
-            continue
-
         # Calculate data availability and missing data
         available_dates = month_data['Date'].dt.strftime('%d/%m').tolist()
         data_availability = f"{available_dates[0]}-{available_dates[-1]}" if available_dates else "-"
@@ -165,29 +165,14 @@ def generate_availability_report(input_file, report_file, station_name):
         formatted_missing_dates = [d.strftime('%d/%m') for d in sorted(missing_dates)]
         data_missing = ", ".join(formatted_missing_dates) if formatted_missing_dates else "-"
 
-        # Filter the columns for available variables for this station
-        expected_variables = [
-            "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
-            "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
-            "Weekly Rain (mm)", "Monthly Rain (mm)", "Yearly Rain (mm)", "Relative Pressure (hPa)", "Humidity (%)",
-            "Ultra-Violet Radiation Index", "Solar Radiation (W/m^2)", "Indoor Temperature (°C)", "Indoor Humidity (%)",
-            "PM2.5 Outdoor (µg/m³)", "PM2.5 Outdoor 24 Hour Average (µg/m³)", "Indoor Battery", "Indoor Feels Like (°C)",
-            "Indoor Dew Point (°C)", "Absolute Pressure (hPa)", "Outdoor Battery", "Avg Wind Direction (10 mins) (°)",
-            "Avg Wind Speed (10 mins) (km/hr)", "Total Rain", "CO2 Battery", "PM 2.5 (µg/m³)"
-        ]
-        available_variables = [col for col in expected_variables if col in month_data.columns]
-
         # Append the station's data to the Excel sheet
-        row = [year, month, data_availability, data_missing, station_name]
-        for variable in expected_variables:
-            row.append("✓" if variable in available_variables else "-")
-
+        row = [year, month, data_availability, data_missing, station_name] + [
+            "✓" if variable in month_data.columns else "-" for variable in ws[1]
+        ]
         ws.append(row)
 
     # Save the updated workbook
     wb.save(report_file)
-
-
 
 
 if __name__ == '__main__':
