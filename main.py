@@ -140,40 +140,6 @@ def generate_availability_report(input_file, report_file, station_name):
         ]
         ws.append(headers)
 
-    # Define variable mapping
-    variable_mapping = {
-        "Outdoor Temperature (°C)": "OutdoorTemp",
-        "Feels Like (°C)": "FeelsLike",
-        "Dew Point (°C)": "DewPoint",
-        "Wind Speed (km/hr)": "WindSpeed",
-        "Wind Gust (km/hr)": "WindGust",
-        "Max Daily Gust (km/hr)": "MaxDailyGust",
-        "Wind Direction (°)": "WindDirection",
-        "Rain Rate(mm/hr)": "RainRate",
-        "Event Rain (mm)": "EventRain",
-        "Daily Rain (mm)": "DailyRain",
-        "Weekly Rain (mm)": "WeeklyRain",
-        "Monthly Rain (mm)": "MonthlyRain",
-        "Yearly Rain (mm)": "YearlyRain",
-        "Relative Pressure (hPa)": "RelativePressure",
-        "Humidity (%)": "Humidity",
-        "Ultra-Violet Radiation Index": "UVIndex",
-        "Solar Radiation (W/m^2)": "SolarRadiation",
-        "Indoor Temperature (°C)": "IndoorTemp",
-        "Indoor Humidity (%)": "IndoorHumidity",
-        "PM2.5 Outdoor (µg/m³)": "PM25Outdoor",
-        "PM2.5 Outdoor 24 Hour Average (µg/m³)": "PM25Outdoor24HrAvg",
-        "Indoor Battery": "IndoorBattery",
-        "Indoor Feels Like (°C)": "IndoorFeelsLike",
-        "Indoor Dew Point (°C)": "IndoorDewPoint",
-        "Absolute Pressure (hPa)": "AbsolutePressure",
-        "Outdoor Battery": "OutdoorBattery",
-        "Avg Wind Direction (10 mins) (°)": "AvgWindDirection",
-        "Avg Wind Speed (10 mins) (km/hr)": "AvgWindSpeed",
-        "Total Rain": "TotalRain",
-        "CO2 Battery": "CO2Battery",
-        "PM 2.5 (µg/m³)": "PM25",
-    }
 
     # Group data by Year and Month
     grouped = df.groupby(['Year', 'Month'])
@@ -195,10 +161,24 @@ def generate_availability_report(input_file, report_file, station_name):
         formatted_missing_dates = [d.strftime('%d/%m') for d in sorted(missing_dates)]
         data_missing = ", ".join(formatted_missing_dates) if formatted_missing_dates else "-"
 
-        # Append the station's data to the Excel sheet
-        row = [year, month, data_availability, data_missing, station_name] + [
-            "✓" if variable_mapping.get(header, None) in month_data.columns else "-" for header in ws[1][5:]
+          # Filter the columns for available variables for this station
+        expected_variables = [
+            "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
+            "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
+            "Weekly Rain (mm)", "Monthly Rain (mm)", "Yearly Rain (mm)", "Relative Pressure (hPa)", "Humidity (%)",
+            "Ultra-Violet Radiation Index", "Solar Radiation (W/m^2)", "Indoor Temperature (°C)", "Indoor Humidity (%)",
+            "PM2.5 Outdoor (µg/m³)", "PM2.5 Outdoor 24 Hour Average (µg/m³)", "Indoor Battery", "Indoor Feels Like (°C)",
+            "Indoor Dew Point (°C)", "Absolute Pressure (hPa)", "Outdoor Battery", "Avg Wind Direction (10 mins) (°)",
+            "Avg Wind Speed (10 mins) (km/hr)", "Total Rain", "CO2 Battery", "PM 2.5 (µg/m³)"
         ]
+        available_variables = [col for col in expected_variables if col in month_data.columns]
+
+        # Append the station's data to the Excel sheet
+        row = [year, month, data_availability, data_missing, station_name]
+        for variable in expected_variables:
+            row.append("✓" if variable in available_variables else "-")
+
+
         ws.append(row)
 
     # Save the updated workbook
