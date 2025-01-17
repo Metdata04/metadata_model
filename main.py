@@ -27,29 +27,25 @@ if not GITHUB_TOKEN:
 def upload_file_to_github(file_path, file_name, commit_message="Add new report"):
     url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_name}"
 
-    # Check if the file exists
+    # Check if the file exists on GitHub to get its SHA
     response = requests.get(
         url,
         headers={"Authorization": f"token {GITHUB_TOKEN}"}
     )
-
-    sha = None  # Default to None if file doesn't exist
+    sha = None
     if response.status_code == 200:
-        # File exists, get the sha of the current file
         sha = response.json().get('sha')
 
     # Encode the file to base64
     with open(file_path, "rb") as file:
         encoded_file = base64.b64encode(file.read()).decode("utf-8")
 
-    # Prepare the data for upload (either creating or updating the file)
+    # Prepare the payload for the upload
     data = {
         "message": commit_message,
         "content": encoded_file,
         "branch": BRANCH_NAME
     }
-
-    # If sha is found, it means we are updating an existing file
     if sha:
         data['sha'] = sha
 
@@ -60,11 +56,11 @@ def upload_file_to_github(file_path, file_name, commit_message="Add new report")
         json=data
     )
 
-    # Check the response status
-    if response.status_code in (200, 201):
-        return f"File {file_name} uploaded/updated successfully."
+    # Handle the response
+    if response.status_code in [200, 201]:
+        return f"File {file_name} successfully uploaded or updated."
     else:
-        raise Exception(f"Failed to upload file: {response.status_code} - {response.text}")
+        raise Exception(f"GitHub upload failed: {response.status_code} - {response.text}")
 
 
 @app.route('/')
@@ -78,7 +74,6 @@ def upload_file():
         return "No file part", 400
 
     file = request.files['file']
-
     if file.filename == '':
         return "No selected file", 400
 
@@ -90,7 +85,7 @@ def upload_file():
 
     try:
         generate_availability_report(input_file_path, report_file_path, station_name)
-        upload_result = upload_file_to_github(report_file_path, f"{station_name}_Metadata_Report.xlsx", f"Add/update metadata report for {station_name}")
+        upload_result = upload_file_to_github(report_file_path, f"{station_name}_Metadata_Report.xlsx", f"Update metadata report for {station_name}")
         print(upload_result)
         return redirect(url_for('report_generated', station_name=station_name))
     except Exception as e:
@@ -99,7 +94,7 @@ def upload_file():
 
 @app.route('/report_generated/<station_name>')
 def report_generated(station_name):
-    return f"Report successfully generated for station: {station_name}. You can find it in the GitHub repository."
+    return f"Report successfully generated for station: {station_name}."
 
 
 def generate_availability_report(input_file, report_file, station_name):
@@ -118,19 +113,11 @@ def generate_availability_report(input_file, report_file, station_name):
     df['Year'] = df['Date'].dt.year
     df['Month'] = df['Date'].dt.strftime('%b').str.upper()
 
-    # Check if the report file exists in GitHub
-    url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{station_name}_Metadata_Report.xlsx"
-    response = requests.get(url, headers={"Authorization": f"token {GITHUB_TOKEN}"})
-
-    if response.status_code == 200:
-        # File exists, download it
-        content = base64.b64decode(response.json()['content'])
-        with open(report_file, "wb") as f:
-            f.write(content)
+    # Load the workbook if it exists, otherwise create a new one
+    if os.path.exists(report_file):
         wb = load_workbook(report_file)
         ws = wb.active
     else:
-        # Create a new workbook
         wb = Workbook()
         ws = wb.active
         ws.title = "Metadata Report"
@@ -145,33 +132,34 @@ def generate_availability_report(input_file, report_file, station_name):
         ]
         ws.append(headers)
 
+    # Check for existing entries to avoid duplicates
+    existing_entries = {
+        (row[0].value, row[1].value, row[4].value)  # (Year, Month, Station Name)
+        for row in ws.iter_rows(min_row=2, max_col=5)
+    }
+
     # Group data by Year and Month
     grouped = df.groupby(['Year', 'Month'])
     for (year, month), month_data in grouped:
-        # Calculate data availability and missing data
+        if (year, month, station_name) in existing_entries:
+            continue  # Skip if entry already exists
+
         available_dates = month_data['Date'].dt.strftime('%d/%m').tolist()
         data_availability = f"{available_dates[0]}-{available_dates[-1]}" if available_dates else "-"
 
-        # Create the full month for comparison to get missing dates
         month_number = month_data['Date'].dt.month.iloc[0]
         all_dates = pd.date_range(
             start=f"{year}-{month_number:02d}-01",
             end=f"{year}-{month_number:02d}-{month_data['Date'].dt.days_in_month.iloc[0]}"
         )
+        missing_dates = set(all_dates.date) - set(month_data['Date'].dt.date)
+        data_missing = ", ".join(d.strftime('%d/%m') for d in sorted(missing_dates)) if missing_dates else "-"
 
-        all_dates_set = set(all_dates.date)
-        available_dates_set = set(month_data['Date'].dt.date)
-        missing_dates = all_dates_set - available_dates_set
-        formatted_missing_dates = [d.strftime('%d/%m') for d in sorted(missing_dates)]
-        data_missing = ", ".join(formatted_missing_dates) if formatted_missing_dates else "-"
-
-        # Append the station's data to the Excel sheet
-        row = [year, month, data_availability, data_missing, station_name] + [
-            "✓" if variable in month_data.columns else "-" for variable in ws[1]
-        ]
+        row = [year, month, data_availability, data_missing, station_name]
+        for variable in ws[1][5:]:
+            row.append("✓" if variable.value in month_data.columns else "-")
         ws.append(row)
 
-    # Save the updated workbook
     wb.save(report_file)
 
 
