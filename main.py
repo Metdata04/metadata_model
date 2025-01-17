@@ -107,9 +107,9 @@ def generate_availability_report(input_file, report_file, station_name):
 
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     if df['Date'].isna().any():
-        raise ValueError("Some 'Date' values are invalid.")
+        raise ValueError("Some 'Date' values in the 'Date' column are invalid.")
 
-    # Create the "Year" and "Month" columns for grouping
+    # Create "Year" and "Month" columns for grouping
     df['Year'] = df['Date'].dt.year
     df['Month'] = df['Date'].dt.strftime('%b').str.upper()
 
@@ -140,41 +140,40 @@ def generate_availability_report(input_file, report_file, station_name):
         ]
         ws.append(headers)
 
-    # Map headers to DataFrame column names
+    # Define variable mapping
     variable_mapping = {
-    "Outdoor Temperature (°C)": "OutdoorTemp",
-    "Feels Like (°C)": "FeelsLike",
-    "Dew Point (°C)": "DewPoint",
-    "Wind Speed (km/hr)": "WindSpeed",
-    "Wind Gust (km/hr)": "WindGust",
-    "Max Daily Gust (km/hr)": "MaxDailyGust",
-    "Wind Direction (°)": "WindDirection",
-    "Rain Rate(mm/hr)": "RainRate",
-    "Event Rain (mm)": "EventRain",
-    "Daily Rain (mm)": "DailyRain",
-    "Weekly Rain (mm)": "WeeklyRain",
-    "Monthly Rain (mm)": "MonthlyRain",
-    "Yearly Rain (mm)": "YearlyRain",
-    "Relative Pressure (hPa)": "RelativePressure",
-    "Humidity (%)": "Humidity",
-    "Ultra-Violet Radiation Index": "UVIndex",
-    "Solar Radiation (W/m^2)": "SolarRadiation",
-    "Indoor Temperature (°C)": "IndoorTemp",
-    "Indoor Humidity (%)": "IndoorHumidity",
-    "PM2.5 Outdoor (µg/m³)": "PM25Outdoor",
-    "PM2.5 Outdoor 24 Hour Average (µg/m³)": "PM25Outdoor24HrAvg",
-    "Indoor Battery": "IndoorBattery",
-    "Indoor Feels Like (°C)": "IndoorFeelsLike",
-    "Indoor Dew Point (°C)": "IndoorDewPoint",
-    "Absolute Pressure (hPa)": "AbsolutePressure",
-    "Outdoor Battery": "OutdoorBattery",
-    "Avg Wind Direction (10 mins) (°)": "AvgWindDirection",
-    "Avg Wind Speed (10 mins) (km/hr)": "AvgWindSpeed",
-    "Total Rain": "TotalRain",
-    "CO2 Battery": "CO2Battery",
-    "PM 2.5 (µg/m³)": "PM25",
-}
-
+        "Outdoor Temperature (°C)": "OutdoorTemp",
+        "Feels Like (°C)": "FeelsLike",
+        "Dew Point (°C)": "DewPoint",
+        "Wind Speed (km/hr)": "WindSpeed",
+        "Wind Gust (km/hr)": "WindGust",
+        "Max Daily Gust (km/hr)": "MaxDailyGust",
+        "Wind Direction (°)": "WindDirection",
+        "Rain Rate(mm/hr)": "RainRate",
+        "Event Rain (mm)": "EventRain",
+        "Daily Rain (mm)": "DailyRain",
+        "Weekly Rain (mm)": "WeeklyRain",
+        "Monthly Rain (mm)": "MonthlyRain",
+        "Yearly Rain (mm)": "YearlyRain",
+        "Relative Pressure (hPa)": "RelativePressure",
+        "Humidity (%)": "Humidity",
+        "Ultra-Violet Radiation Index": "UVIndex",
+        "Solar Radiation (W/m^2)": "SolarRadiation",
+        "Indoor Temperature (°C)": "IndoorTemp",
+        "Indoor Humidity (%)": "IndoorHumidity",
+        "PM2.5 Outdoor (µg/m³)": "PM25Outdoor",
+        "PM2.5 Outdoor 24 Hour Average (µg/m³)": "PM25Outdoor24HrAvg",
+        "Indoor Battery": "IndoorBattery",
+        "Indoor Feels Like (°C)": "IndoorFeelsLike",
+        "Indoor Dew Point (°C)": "IndoorDewPoint",
+        "Absolute Pressure (hPa)": "AbsolutePressure",
+        "Outdoor Battery": "OutdoorBattery",
+        "Avg Wind Direction (10 mins) (°)": "AvgWindDirection",
+        "Avg Wind Speed (10 mins) (km/hr)": "AvgWindSpeed",
+        "Total Rain": "TotalRain",
+        "CO2 Battery": "CO2Battery",
+        "PM 2.5 (µg/m³)": "PM25",
+    }
 
     # Group data by Year and Month
     grouped = df.groupby(['Year', 'Month'])
@@ -204,6 +203,7 @@ def generate_availability_report(input_file, report_file, station_name):
 
     # Save the updated workbook
     wb.save(report_file)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
