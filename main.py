@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect, send_from_directory, url_for
 import pandas as pd
 from openpyxl import load_workbook, Workbook
 import os
@@ -69,9 +69,9 @@ def upload_file_to_github(file_path, file_name, commit_message="Add new report")
 def index():
     return render_template('index.html')
 
+@app.route('/<path:filename>')
 def static_files(filename):
-    public_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public')
-    return (public_dir, filename)
+    return send_from_directory('public', filename)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
