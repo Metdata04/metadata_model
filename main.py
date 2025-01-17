@@ -23,7 +23,6 @@ GITHUB_TOKEN = os.getenv("Metadata_token")  # GitHub personal access token
 if not GITHUB_TOKEN:
     raise ValueError("GitHub token is not set in environment variables.")
 
-
 def upload_file_to_github(file_path, file_name, commit_message="Add new report"):
     url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_name}"
 
@@ -66,11 +65,9 @@ def upload_file_to_github(file_path, file_name, commit_message="Add new report")
     else:
         raise Exception(f"Failed to upload file: {response.status_code} - {response.text}")
 
-
 @app.route('/')
 def index():
     return render_template('index.html')
-
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -96,11 +93,9 @@ def upload_file():
     except Exception as e:
         return f"Error generating the report: {e}", 500
 
-
 @app.route('/report_generated/<station_name>')
 def report_generated(station_name):
     return f"Report successfully generated for station: {station_name}. You can find it in the GitHub repository."
-
 
 def generate_availability_report(input_file, report_file, station_name):
     # Read the input CSV file
@@ -145,6 +140,42 @@ def generate_availability_report(input_file, report_file, station_name):
         ]
         ws.append(headers)
 
+    # Map headers to DataFrame column names
+    variable_mapping = {
+    "Outdoor Temperature (°C)": "OutdoorTemp",
+    "Feels Like (°C)": "FeelsLike",
+    "Dew Point (°C)": "DewPoint",
+    "Wind Speed (km/hr)": "WindSpeed",
+    "Wind Gust (km/hr)": "WindGust",
+    "Max Daily Gust (km/hr)": "MaxDailyGust",
+    "Wind Direction (°)": "WindDirection",
+    "Rain Rate(mm/hr)": "RainRate",
+    "Event Rain (mm)": "EventRain",
+    "Daily Rain (mm)": "DailyRain",
+    "Weekly Rain (mm)": "WeeklyRain",
+    "Monthly Rain (mm)": "MonthlyRain",
+    "Yearly Rain (mm)": "YearlyRain",
+    "Relative Pressure (hPa)": "RelativePressure",
+    "Humidity (%)": "Humidity",
+    "Ultra-Violet Radiation Index": "UVIndex",
+    "Solar Radiation (W/m^2)": "SolarRadiation",
+    "Indoor Temperature (°C)": "IndoorTemp",
+    "Indoor Humidity (%)": "IndoorHumidity",
+    "PM2.5 Outdoor (µg/m³)": "PM25Outdoor",
+    "PM2.5 Outdoor 24 Hour Average (µg/m³)": "PM25Outdoor24HrAvg",
+    "Indoor Battery": "IndoorBattery",
+    "Indoor Feels Like (°C)": "IndoorFeelsLike",
+    "Indoor Dew Point (°C)": "IndoorDewPoint",
+    "Absolute Pressure (hPa)": "AbsolutePressure",
+    "Outdoor Battery": "OutdoorBattery",
+    "Avg Wind Direction (10 mins) (°)": "AvgWindDirection",
+    "Avg Wind Speed (10 mins) (km/hr)": "AvgWindSpeed",
+    "Total Rain": "TotalRain",
+    "CO2 Battery": "CO2Battery",
+    "PM 2.5 (µg/m³)": "PM25",
+}
+
+
     # Group data by Year and Month
     grouped = df.groupby(['Year', 'Month'])
     for (year, month), month_data in grouped:
@@ -167,13 +198,12 @@ def generate_availability_report(input_file, report_file, station_name):
 
         # Append the station's data to the Excel sheet
         row = [year, month, data_availability, data_missing, station_name] + [
-            "✓" if variable in month_data.columns else "-" for variable in ws[1]
+            "✓" if variable_mapping.get(header, None) in month_data.columns else "-" for header in ws[1][5:]
         ]
         ws.append(row)
 
     # Save the updated workbook
     wb.save(report_file)
-
 
 if __name__ == '__main__':
     app.run(debug=True)
