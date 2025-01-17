@@ -13,7 +13,7 @@
     },
     {
       "src": "/images/(.*)",
-      "dest": "logo.png"
+      "dest": "/public/images/$1"
     }
   ]
 }
