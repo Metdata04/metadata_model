@@ -69,6 +69,10 @@ def upload_file_to_github(file_path, file_name, commit_message="Add new report")
 def index():
     return render_template('index.html')
 
+def static_files(filename):
+    public_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public')
+    return (public_dir, filename)
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
