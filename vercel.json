@@ -10,6 +10,10 @@
     {
       "src": "/(.*)",
       "dest": "main.py"
+    },
+    {
+      "src": "/images/(.*)",
+      "dest": "/public/images/$1"
     }
   ]
 }
