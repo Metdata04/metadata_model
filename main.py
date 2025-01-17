@@ -69,8 +69,9 @@ def upload_file_to_github(file_path, file_name, commit_message="Add new report")
 def index():
     return render_template('index.html')
 
-@app.route('/images/<filename>')
-def static_files(filename):
+@app.route('/images/<path:filename>')
+def serve_static(filename):
+    print(f"Serving file: {os.path.join('public/images', filename)}")
     return send_from_directory('public/images', filename)
 
 @app.route('/upload', methods=['POST'])
