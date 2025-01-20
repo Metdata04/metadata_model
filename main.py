@@ -69,10 +69,6 @@ def upload_file_to_github(file_path, file_name, commit_message="Add new report")
 def index():
     return render_template('index.html')
 
-@app.route('/images/<path:filename>')
-def serve_static(filename):
-    print(f"Serving file: {os.path.join('public/images', filename)}")
-    return send_from_directory('public/images', filename)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -117,7 +113,6 @@ def generate_availability_report(input_file, report_file, station_name):
     # Create "Year" and "Month" columns for grouping
     df['Year'] = df['Date'].dt.year
     df['Month'] = df['Date'].dt.strftime('%b').str.upper()
-
     # Check if the report file exists in GitHub
     url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{station_name}_Metadata_Report.xlsx"
     response = requests.get(url, headers={"Authorization": f"token {GITHUB_TOKEN}"})
@@ -127,10 +122,15 @@ def generate_availability_report(input_file, report_file, station_name):
         content = base64.b64decode(response.json()['content'])
         with open(report_file, "wb") as f:
             f.write(content)
+    # Load existing report if it exists
+    if os.path.exists(report_file):
+        
         wb = load_workbook(report_file)
         ws = wb.active
+        # Extract existing Year and Month from the report
+        existing_data = pd.DataFrame(ws.iter_rows(min_row=2, values_only=True), columns=[cell.value for cell in ws[1]])
+        existing_year_month = set(zip(existing_data['Year'], existing_data['Month']))
     else:
-        # Create a new workbook
         wb = Workbook()
         ws = wb.active
         ws.title = "Metadata Report"
@@ -144,11 +144,16 @@ def generate_availability_report(input_file, report_file, station_name):
             "Avg Wind Speed (10 mins) (km/hr)", "Total Rain", "CO2 Battery", "PM 2.5 (µg/m³)"
         ]
         ws.append(headers)
-
+        existing_year_month = set()
 
     # Group data by Year and Month
     grouped = df.groupby(['Year', 'Month'])
     for (year, month), month_data in grouped:
+        # Skip if the year and month already exist in the report
+        if (year, month) in existing_year_month:
+            print(f"Data for {year}-{month} already exists. Skipping...")
+            continue
+
         # Calculate data availability and missing data
         available_dates = month_data['Date'].dt.strftime('%d/%m').tolist()
         data_availability = f"{available_dates[0]}-{available_dates[-1]}" if available_dates else "-"
@@ -166,7 +171,7 @@ def generate_availability_report(input_file, report_file, station_name):
         formatted_missing_dates = [d.strftime('%d/%m') for d in sorted(missing_dates)]
         data_missing = ", ".join(formatted_missing_dates) if formatted_missing_dates else "-"
 
-          # Filter the columns for available variables for this station
+        # Filter the columns for available variables for this station
         expected_variables = [
             "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
             "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
@@ -182,7 +187,6 @@ def generate_availability_report(input_file, report_file, station_name):
         row = [year, month, data_availability, data_missing, station_name]
         for variable in expected_variables:
             row.append("✓" if variable in available_variables else "-")
-
 
         ws.append(row)
 
