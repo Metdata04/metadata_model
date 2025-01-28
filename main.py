@@ -175,10 +175,27 @@ def generate_availability_report(input_file, report_file, station_name):
         expected_variables = headers[5:]
         available_variables = [col for col in expected_variables if col in month_data.columns]
 
-        # Append the station's data to the report
-        row = [year, month, data_availability, data_missing, station_name] + [
-            "✓" if variable in available_variables else "-" for variable in expected_variables
-        ]
+        row = [year, month, data_availability, data_missing, station_name]
+
+        # Check each variable for availability
+        for variable in expected_variables:
+            if variable in available_variables:
+                # Check for full or partial availability
+                available_data = month_data[variable].notna()
+                total_rows = len(month_data)
+                available_count = available_data.sum()
+
+                if available_count == total_rows:
+                    row.append("✓")  # Full availability
+                elif available_count == 0:
+                    row.append("-")  # Full absence
+                else:
+                    # Partial availability
+                    availability_percentage = (available_count / total_rows) * 100
+                    row.append(f"{availability_percentage:.2f}%")  # Display the percentage
+            else:
+                row.append("-")  # Variable is not present in the data
+
         report_data.append(row)
 
     # Convert the report data into a DataFrame
