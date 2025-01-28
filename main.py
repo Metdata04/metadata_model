@@ -108,9 +108,10 @@ def upload_file():
         report_file_path = os.path.join(METADATA_REPORTS_FOLDER, f"{station_name}_Metadata_Report.csv")
         generate_availability_report(input_file_path, report_file_path, station_name)
 
-        # Upload the report to GitHub
+        # Upload the report to the "metadata_reports" folder in the repository
+        report_file_name_in_github = f"metadata_reports/{station_name}_Metadata_Report.csv"
         with open(report_file_path, 'rb') as report_file:
-            upload_result = upload_file_to_github(report_file, f"{station_name}_Metadata_Report.csv", f"Add/update metadata report for {station_name}")
+            upload_result = upload_file_to_github(report_file, report_file_name_in_github, f"Add/update metadata report for {station_name}")
         print(upload_result)
 
         return redirect(url_for('report_generated', station_name=station_name))
