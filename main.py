@@ -1,6 +1,5 @@
-from flask import Flask, request, render_template, redirect, send_from_directory, url_for
+from flask import Flask, request, render_template, redirect, url_for
 import pandas as pd
-from openpyxl import load_workbook, Workbook
 import os
 import requests
 import base64
@@ -22,7 +21,7 @@ BRANCH_NAME = "main"  # Branch name
 GITHUB_TOKEN = os.getenv("Metadata_token")  # GitHub personal access token
 if not GITHUB_TOKEN:
     raise ValueError("GitHub token is not set in environment variables.")
- 
+
 def upload_file_to_github(file_path, file_name, commit_message="Add new report"):
     url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_name}"
 
@@ -69,7 +68,6 @@ def upload_file_to_github(file_path, file_name, commit_message="Add new report")
 def index():
     return render_template('index.html')
 
-
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -84,11 +82,11 @@ def upload_file():
     file.save(input_file_path)
 
     station_name = os.path.splitext(file.filename)[0]
-    report_file_path = os.path.join(METADATA_REPORTS_FOLDER, f"{station_name}_Metadata_Report.xlsx")
+    report_file_path = os.path.join(METADATA_REPORTS_FOLDER, f"{station_name}_Metadata_Report.csv")
 
     try:
         generate_availability_report(input_file_path, report_file_path, station_name)
-        upload_result = upload_file_to_github(report_file_path, f"{station_name}_Metadata_Report.xlsx", f"Add/update metadata report for {station_name}")
+        upload_result = upload_file_to_github(report_file_path, f"{station_name}_Metadata_Report.csv", f"Add/update metadata report for {station_name}")
         print(upload_result)
         return redirect(url_for('report_generated', station_name=station_name))
     except Exception as e:
@@ -113,47 +111,23 @@ def generate_availability_report(input_file, report_file, station_name):
     # Create "Year" and "Month" columns for grouping
     df['Year'] = df['Date'].dt.year
     df['Month'] = df['Date'].dt.strftime('%b').str.upper()
-    # Check if the report file exists in GitHub
-    url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{station_name}_Metadata_Report.xlsx"
-    response = requests.get(url, headers={"Authorization": f"token {GITHUB_TOKEN}"})
 
-    if response.status_code == 200:
-        # File exists, download it
-        content = base64.b64decode(response.json()['content'])
-        with open(report_file, "wb") as f:
-            f.write(content)
-    # Load existing report if it exists
-    if os.path.exists(report_file):
-        
-        wb = load_workbook(report_file)
-        ws = wb.active
-        # Extract existing Year and Month from the report
-        existing_data = pd.DataFrame(ws.iter_rows(min_row=2, values_only=True), columns=[cell.value for cell in ws[1]])
-        existing_year_month = set(zip(existing_data['Year'], existing_data['Month']))
-    else:
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Metadata Report"
-        headers = ["Year", "Month", "Data Availability", "Data Missing", "Station Name"] + [
-            "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
-            "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
-            "Weekly Rain (mm)", "Monthly Rain (mm)", "Yearly Rain (mm)", "Relative Pressure (hPa)", "Humidity (%)",
-            "Ultra-Violet Radiation Index", "Solar Radiation (W/m^2)", "Indoor Temperature (°C)", "Indoor Humidity (%)",
-            "PM2.5 Outdoor (µg/m³)", "PM2.5 Outdoor 24 Hour Average (µg/m³)", "Indoor Battery", "Indoor Feels Like (°C)",
-            "Indoor Dew Point (°C)", "Absolute Pressure (hPa)", "Outdoor Battery", "Avg Wind Direction (10 mins) (°)",
-            "Avg Wind Speed (10 mins) (km/hr)", "Total Rain", "CO2 Battery", "PM 2.5 (µg/m³)"
-        ]
-        ws.append(headers)
-        existing_year_month = set()
+    # Initialize the report DataFrame
+    headers = ["Year", "Month", "Data Availability", "Data Missing", "Station Name"] + [
+        "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
+        "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
+        "Weekly Rain (mm)", "Monthly Rain (mm)", "Yearly Rain (mm)", "Relative Pressure (hPa)", "Humidity (%)",
+        "Ultra-Violet Radiation Index", "Solar Radiation (W/m^2)", "Indoor Temperature (°C)", "Indoor Humidity (%)",
+        "PM2.5 Outdoor (µg/m³)", "PM2.5 Outdoor 24 Hour Average (µg/m³)", "Indoor Battery", "Indoor Feels Like (°C)",
+        "Indoor Dew Point (°C)", "Absolute Pressure (hPa)", "Outdoor Battery", "Avg Wind Direction (10 mins) (°)",
+        "Avg Wind Speed (10 mins) (km/hr)", "Total Rain", "CO2 Battery", "PM 2.5 (µg/m³)"
+    ]
+
+    report_data = []
 
     # Group data by Year and Month
     grouped = df.groupby(['Year', 'Month'])
     for (year, month), month_data in grouped:
-        # Skip if the year and month already exist in the report
-        if (year, month) in existing_year_month:
-            print(f"Data for {year}-{month} already exists. Skipping...")
-            continue
-
         # Calculate data availability and missing data
         available_dates = month_data['Date'].dt.strftime('%d/%m').tolist()
         data_availability = f"{available_dates[0]}-{available_dates[-1]}" if available_dates else "-"
@@ -172,27 +146,20 @@ def generate_availability_report(input_file, report_file, station_name):
         data_missing = ", ".join(formatted_missing_dates) if formatted_missing_dates else "-"
 
         # Filter the columns for available variables for this station
-        expected_variables = [
-            "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
-            "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
-            "Weekly Rain (mm)", "Monthly Rain (mm)", "Yearly Rain (mm)", "Relative Pressure (hPa)", "Humidity (%)",
-            "Ultra-Violet Radiation Index", "Solar Radiation (W/m^2)", "Indoor Temperature (°C)", "Indoor Humidity (%)",
-            "PM2.5 Outdoor (µg/m³)", "PM2.5 Outdoor 24 Hour Average (µg/m³)", "Indoor Battery", "Indoor Feels Like (°C)",
-            "Indoor Dew Point (°C)", "Absolute Pressure (hPa)", "Outdoor Battery", "Avg Wind Direction (10 mins) (°)",
-            "Avg Wind Speed (10 mins) (km/hr)", "Total Rain", "CO2 Battery", "PM 2.5 (µg/m³)"
-        ]
+        expected_variables = headers[5:]
         available_variables = [col for col in expected_variables if col in month_data.columns]
 
-        # Append the station's data to the Excel sheet
-        row = [year, month, data_availability, data_missing, station_name]
-        for variable in expected_variables:
-            row.append("✓" if variable in available_variables else "-")
+        # Append the station's data to the report
+        row = [year, month, data_availability, data_missing, station_name] + [
+            "✓" if variable in available_variables else "-" for variable in expected_variables
+        ]
+        report_data.append(row)
 
-        ws.append(row)
+    # Convert the report data into a DataFrame
+    report_df = pd.DataFrame(report_data, columns=headers)
 
-    # Save the updated workbook
-    wb.save(report_file)
-
+    # Save the report as a CSV file
+    report_df.to_csv(report_file, index=False)
 
 if __name__ == '__main__':
     app.run(debug=True)
