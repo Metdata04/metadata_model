@@ -9,12 +9,9 @@ app = Flask(__name__)
 # Directories to store files temporarily
 METADATA_FOLDER = "/tmp/metadata"
 METADATA_REPORTS_FOLDER = "/tmp/metadata_reports"
-GENERATED_REPORTS_FOLDER = "/tmp/generated_reports"  # New folder for generated reports
 
-# Ensure the directories exist
 os.makedirs(METADATA_FOLDER, exist_ok=True)
 os.makedirs(METADATA_REPORTS_FOLDER, exist_ok=True)
-os.makedirs(GENERATED_REPORTS_FOLDER, exist_ok=True)  # Create the generated reports folder
 
 # GitHub repository details
 GITHUB_API_URL = "https://api.github.com"
@@ -39,7 +36,7 @@ def upload_file_to_github(file, file_name, commit_message="Add new report"):
         # File exists, get the sha of the current file
         sha = response.json().get('sha')
 
-# Ensure file pointer is at the start
+    # Ensure file pointer is at the start
     file.seek(0)
 
     # Encode the file to base64
@@ -86,8 +83,12 @@ def upload_file():
     # Get station name from the file name (e.g., 'station_name.csv')
     station_name = os.path.splitext(file.filename)[0]
 
+    # Save the uploaded file temporarily to process it
+    input_file_path = os.path.join(METADATA_FOLDER, file.filename)
+    file.save(input_file_path)
+
     # Read the file to get the first date (assumed to be the first row in the 'Date' column)
-    df = pd.read_csv(file)
+    df = pd.read_csv(input_file_path)
     if 'Date' not in df.columns:
         return "The file must contain a 'Date' column.", 400
 
@@ -103,14 +104,15 @@ def upload_file():
         upload_result = upload_file_to_github(file, file_name_in_github, f"Add/update file for {station_name} for {year_month}")
         print(upload_result)
         
-        # Save the report to the generated_reports folder
-        report_file_path = os.path.join(GENERATED_REPORTS_FOLDER, f"{station_name}_Metadata_Report.csv")
-        generate_availability_report(file, report_file_path, station_name)
-        
+        # Generate the availability report
+        report_file_path = os.path.join(METADATA_REPORTS_FOLDER, f"{station_name}_Metadata_Report.csv")
+        generate_availability_report(input_file_path, report_file_path, station_name)
+
         # Upload the report to GitHub
-        upload_result = upload_file_to_github(open(report_file_path, 'rb'), f"{station_name}_Metadata_Report.csv", f"Add/update metadata report for {station_name}")
+        with open(report_file_path, 'rb') as report_file:
+            upload_result = upload_file_to_github(report_file, f"{station_name}_Metadata_Report.csv", f"Add/update metadata report for {station_name}")
         print(upload_result)
-        
+
         return redirect(url_for('report_generated', station_name=station_name))
     except Exception as e:
         return f"Error generating the report: {e}", 500
