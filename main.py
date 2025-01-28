@@ -6,7 +6,7 @@ import base64
 
 app = Flask(__name__)
 
-# Directories to store files temporarily
+# Directories to store files
 METADATA_FOLDER = "/tmp/metadata"
 METADATA_REPORTS_FOLDER = "/tmp/metadata_reports"
 
@@ -22,7 +22,7 @@ GITHUB_TOKEN = os.getenv("Metadata_token")  # GitHub personal access token
 if not GITHUB_TOKEN:
     raise ValueError("GitHub token is not set in environment variables.")
 
-def upload_file_to_github(file, file_name, commit_message="Add new report"):
+def upload_file_to_github(file_path, file_name, commit_message="Add new report"):
     url = f"{GITHUB_API_URL}/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_name}"
 
     # Check if the file exists
@@ -37,7 +37,8 @@ def upload_file_to_github(file, file_name, commit_message="Add new report"):
         sha = response.json().get('sha')
 
     # Encode the file to base64
-    encoded_file = base64.b64encode(file.read()).decode("utf-8")
+    with open(file_path, "rb") as file:
+        encoded_file = base64.b64encode(file.read()).decode("utf-8")
 
     # Prepare the data for upload (either creating or updating the file)
     data = {
@@ -77,31 +78,16 @@ def upload_file():
     if file.filename == '':
         return "No selected file", 400
 
-    # Get station name from the file name (e.g., 'station_name.csv')
+    input_file_path = os.path.join(METADATA_FOLDER, file.filename)
+    file.save(input_file_path)
+
     station_name = os.path.splitext(file.filename)[0]
-
-    # Read the file to get the first date (assumed to be the first row in the 'Date' column)
-    df = pd.read_csv(file)
-    if 'Date' not in df.columns:
-        return "The file must contain a 'Date' column.", 400
-
-    # Extract the year and month from the first date entry
-    first_date = pd.to_datetime(df['Date'].iloc[0])
-    year_month = first_date.strftime('%Y-%m')
-
-    # Create the full path to simulate folder structure in the repository
-    file_name_in_github = f"{station_name}/{year_month}.csv"
+    report_file_path = os.path.join(METADATA_REPORTS_FOLDER, f"{station_name}_Metadata_Report.csv")
 
     try:
-        # Upload the file to GitHub with the new folder and name
-        upload_result = upload_file_to_github(file, file_name_in_github, f"Add/update file for {station_name} for {year_month}")
+        generate_availability_report(input_file_path, report_file_path, station_name)
+        upload_result = upload_file_to_github(report_file_path, f"{station_name}_Metadata_Report.csv", f"Add/update metadata report for {station_name}")
         print(upload_result)
-        
-        report_file_path = os.path.join(METADATA_REPORTS_FOLDER, f"{station_name}_Metadata_Report.csv")
-        generate_availability_report(file, report_file_path, station_name)
-        upload_result = upload_file_to_github(open(report_file_path, 'rb'), f"{station_name}_Metadata_Report.csv", f"Add/update metadata report for {station_name}")
-        print(upload_result)
-        
         return redirect(url_for('report_generated', station_name=station_name))
     except Exception as e:
         return f"Error generating the report: {e}", 500
