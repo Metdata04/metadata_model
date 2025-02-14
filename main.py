@@ -181,7 +181,7 @@ def generate_availability_report(input_file, report_file, station_name):
         for variable in expected_variables:
             if variable in available_variables:
                 # Check for full or partial availability
-                available_data = month_data[variable].notna()
+                available_data = month_data[variable].notna() & (month_data[variable] != "")
                 total_rows = len(month_data)
                 available_count = available_data.sum()
 
