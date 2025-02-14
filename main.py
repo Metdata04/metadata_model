@@ -146,7 +146,7 @@ def generate_availability_report(input_file, report_file, station_name):
         "Ultra-Violet Radiation Index", "Solar Radiation (W/m^2)", "Indoor Temperature (°C)", "Indoor Humidity (%)",
         "PM2.5 Outdoor (µg/m³)", "PM2.5 Outdoor 24 Hour Average (µg/m³)", "Indoor Battery", "Indoor Feels Like (°C)",
         "Indoor Dew Point (°C)", "Absolute Pressure (hPa)", "Outdoor Battery", "Avg Wind Direction (10 mins) (°)",
-        "Avg Wind Speed (10 mins) (km/hr)", "Total Rain", "CO2 Battery", "PM 2.5 (µg/m³)"
+        "Avg Wind Speed (10 mins) (km/hr)", "Total Rain (mm)", "CO2 Battery", "PM 2.5 (µg/m³)"
     ]
 
     report_data = []
