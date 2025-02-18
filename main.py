@@ -140,12 +140,12 @@ def generate_availability_report(input_file, report_file, station_name):
 
     # Initialize the report DataFrame
     headers = ["Year", "Month", "Data Availability", "Data Missing", "Station Name"] + [
-        "Outdoor Temperature (掳C)", "Feels Like (掳C)", "Dew Point (掳C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
-        "Max Daily Gust (km/hr)", "Wind Direction (掳)", "Rain Rate(mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
+        "Outdoor Temperature (°C)", "Feels Like (°C)", "Dew Point (°C)", "Wind Speed (km/hr)", "Wind Gust (km/hr)",
+        "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate (mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
         "Weekly Rain (mm)", "Monthly Rain (mm)", "Yearly Rain (mm)", "Relative Pressure (hPa)", "Humidity (%)",
-        "Ultra-Violet Radiation Index", "Solar Radiation (W/m^2)", "Indoor Temperature (掳C)", "Indoor Humidity (%)",
-        "PM2.5 Outdoor (碌g/m³)", "PM2.5 Outdoor 24 Hour Average (碌g/m³)", "Indoor Battery", "Indoor Feels Like (掳C)",
-        "Indoor Dew Point (掳C)", "Absolute Pressure (hPa)", "Outdoor Battery", "Avg Wind Direction (10 mins) (掳)",
+        "Ultra-Violet Radiation Index", "Solar Radiation (W/m^2)", "Indoor Temperature (°C)", "Indoor Humidity (%)",
+        "PM2.5 Outdoor (μg/m³)", "PM2.5 Outdoor 24 Hour Average (μg/m³)", "Indoor Battery", "Indoor Feels Like (°C)",
+        "Indoor Dew Point (°C)", "Absolute Pressure (hPa)", "Outdoor Battery", "Avg Wind Direction (10 mins) (°)",
         "Avg Wind Speed (10 mins) (km/hr)", "Total Rain (mm)", "CO2 Battery", "PM 2.5 Outdoor", "PM2.5 Outdoor 24 Hour Average", "PM2.5 Outdoor Battery"
     ]
 
