@@ -144,7 +144,7 @@ def generate_availability_report(input_file, report_file, station_name):
         "Max Daily Gust (km/hr)", "Wind Direction (°)", "Rain Rate (mm/hr)", "Event Rain (mm)", "Daily Rain (mm)",
         "Weekly Rain (mm)", "Monthly Rain (mm)", "Yearly Rain (mm)", "Relative Pressure (hPa)", "Humidity (%)",
         "Ultra-Violet Radiation Index", "Solar Radiation (W/m^2)", "Indoor Temperature (°C)", "Indoor Humidity (%)",
-        "PM2.5 Outdoor (\u03bcg/m^3)", "PM2.5 Outdoor 24 Hour Average (\u03bcg/m^3)", "Indoor Battery", "Indoor Feels Like (°C)",
+        "PM2.5 Outdoor (µg/m^3)", "PM2.5 Outdoor 24 Hour Average (µg/m^3)", "Indoor Battery", "Indoor Feels Like (°C)",
         "Indoor Dew Point (°C)", "Absolute Pressure (hPa)", "Outdoor Battery", "Avg Wind Direction (10 mins) (°)",
         "Avg Wind Speed (10 mins) (km/hr)", "Total Rain (mm)", "CO2 battery", "PM2.5 Outdoor", "PM2.5 Outdoor 24 Hour Average", "PM2.5 Outdoor Battery"
     ]
